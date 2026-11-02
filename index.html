@@ -1,46 +1,477 @@
-<!doctype html><html><head><meta charset="utf-8"><link rel="icon" href="data:,"><title>Ghost Karts (Night Watch prototype)</title>
-<style>body{margin:0;background:#070814;color:#ffd98a;font:14px monospace;text-align:center}canvas{display:block;margin:6px auto;background:#0b0d22}</style></head>
-<body><div>Kin: <select id="kin"><option>Night Watch</option><option>589</option><option>DEVINE</option><option>Witness</option><option>Father</option></select>
- Race ghost of: <select id="ghostOf"><option>Night Watch</option><option>589</option><option>DEVINE</option><option>Witness</option><option>Father</option><option value="__race">🌙 Race Night (house ghosts)</option></select>
- &nbsp;Press ↑ to start · Arrows drive, Shift = gear boost · pass all 8 gates for a lap to count</div><canvas id="c" width="800" height="560"></canvas>
-<script>
-const c=document.getElementById('c'),x=c.getContext('2d'),W=800,H=560,CX=400,CY=280,RO=[340,230],RI=[200,110];
-const kinSel=document.getElementById('kin'),ghostSel=document.getElementById('ghostOf');
-const key={};addEventListener('keydown',e=>{key[e.key]=1;if(e.key.startsWith('Arrow'))e.preventDefault()});addEventListener('keyup',e=>key[e.key]=0);
-const K='ghostkarts:',GATES=8,REC_MAX=1800,MAX_LAP_MS=60000;let msg='',msgT=-1e9;function loadG(n){try{return JSON.parse(localStorage.getItem(K+n))}catch(e){return null}}
-let ghost=loadG(ghostSel.value);ghostSel.onchange=()=>{ghost=loadG(ghostSel.value)};
-// House ghosts (589/kin): committed JSON ghosts in ghosts/, raced all at once in Race Night mode. Fails quietly if missing.
-let houseGhosts=[];fetch('ghosts/index.json').then(r=>r.ok?r.json():[]).then(l=>Promise.all(l.map(f=>fetch('ghosts/'+f).then(r=>r.ok?r.json():null).catch(()=>null)))).then(a=>{houseGhosts=a.filter(g=>g&&Array.isArray(g.path)&&g.path.length)}).catch(()=>{});
-function posIn(p,t){let i=p.findIndex(q=>q[0]>=t);if(i<0)i=p.length-1;return p[i]}
-const car={x:CX,y:CY+170,a:0,v:0};let started=false,lapStart=0,lastRec=-1e9,gates=new Set(),rec=[],laps=0,last=null,best=null,angPrev=null,acc=0,t0=performance.now(),gear=1;
-function onTrack(px,py){const dx=px-CX,dy=py-CY,o=(dx/RO[0])**2+(dy/RO[1])**2,i=(dx/RI[0])**2+(dy/RI[1])**2;return o<=1&&i>=1}
-function step(dt){gear=key.Shift?2:1;const max=(gear==2?330:220)*(onTrack(car.x,car.y)?1:.4);
- if(key.ArrowUp)car.v+=400*dt;else if(key.ArrowDown)car.v-=400*dt;else car.v*=1-1.5*dt;
- car.v=Math.max(-100,Math.min(max,car.v));const turn=2.8*dt*Math.min(1,Math.abs(car.v)/80)*Math.sign(car.v);
- if(key.ArrowLeft)car.a-=turn;if(key.ArrowRight)car.a+=turn;
- car.x=Math.max(5,Math.min(W-5,car.x+Math.cos(car.a)*car.v*dt));car.y=Math.max(5,Math.min(H-5,car.y+Math.sin(car.a)*car.v*dt));
- if(!started){if(key.ArrowUp||key.ArrowDown){started=true;lapStart=performance.now()}else return}
- const now=performance.now(),t=now-lapStart;if(t-lastRec>=33&&rec.length<REC_MAX){rec.push([Math.round(t),Math.round(car.x),Math.round(car.y),+car.a.toFixed(2)]);lastRec=t}
- const ang=Math.atan2(car.y-CY,car.x-CX);if(onTrack(car.x,car.y))gates.add(Math.floor(((ang+Math.PI)/(2*Math.PI))*GATES)%GATES);if(angPrev!==null){let d=ang-angPrev;if(d>Math.PI)d-=2*Math.PI;if(d<-Math.PI)d+=2*Math.PI;acc+=d}angPrev=ang;
- if(Math.abs(acc)>=2*Math.PI&&car.x>CX-20&&car.x<CX+60&&car.y>CY){acc=0;const fair=gates.size===GATES;gates=new Set();if(!fair){msg='Lap not counted: pass every lantern gate on the track';msgT=now;rec=[];lastRec=-1e9;lapStart=now;return}
-  laps++;last=t;const mine=loadG(kinSel.value);
-  if(t<=MAX_LAP_MS&&rec.length<REC_MAX&&(!mine||t<mine.time)){localStorage.setItem(K+kinSel.value,JSON.stringify({time:t,path:rec}))}
-  if(best===null||t<best)best=t;ghost=loadG(ghostSel.value);rec=[];lastRec=-1e9;lapStart=now}}
-function kart(px,py,a,col,al){x.save();x.globalAlpha=al;x.translate(px,py);x.rotate(a);x.fillStyle=col;x.fillRect(-12,-7,24,14);x.fillStyle='#222';x.fillRect(-10,-10,6,3);x.fillRect(4,-10,6,3);x.fillRect(-10,7,6,3);x.fillRect(4,7,6,3);x.fillStyle='#ffe9a8';x.fillRect(9,-4,4,8);x.restore()}
-function ghostPos(t){if(!ghost||!ghost.path.length)return null;const p=ghost.path;let i=p.findIndex(q=>q[0]>=t);if(i<0)i=p.length-1;return p[i]}
-function draw(){x.fillStyle='#0b0d22';x.fillRect(0,0,W,H);
- x.fillStyle='#2a2c44';x.beginPath();x.ellipse(CX,CY,RO[0],RO[1],0,0,7);x.fill();x.fillStyle='#10301f';x.beginPath();x.ellipse(CX,CY,RI[0],RI[1],0,0,7);x.fill();
- x.strokeStyle='#eee';x.lineWidth=4;x.beginPath();x.moveTo(CX,CY+RI[1]);x.lineTo(CX,CY+RO[1]);x.stroke();
- for(let k=0;k<12;k++){const a=k/12*6.283,lx=CX+Math.cos(a)*(RO[0]+18),ly=CY+Math.sin(a)*(RO[1]+18);x.fillStyle='#ffcf6a';x.fillRect(lx-3,ly-5,6,10)}
- kart(car.x,car.y,car.a,'#e0603a',1);
- // lantern darkness with headlight glow + trackside lanterns
- x.save();x.globalCompositeOperation='multiply';const r=x.createRadialGradient(car.x,car.y,20,car.x,car.y,230);r.addColorStop(0,'#fff1c8');r.addColorStop(1,'#6a68a0');x.fillStyle=r;x.fillRect(0,0,W,H);x.restore();
- for(let k=0;k<12;k++){const a=k/12*6.283,lx=CX+Math.cos(a)*(RO[0]+18),ly=CY+Math.sin(a)*(RO[1]+18);const q=x.createRadialGradient(lx,ly,1,lx,ly,28);q.addColorStop(0,'rgba(255,200,100,.6)');q.addColorStop(1,'rgba(255,200,100,0)');x.fillStyle=q;x.fillRect(lx-28,ly-28,56,56)}
- const g=started?ghostPos(performance.now()-lapStart):null;if(g)kart(g[1],g[2],g[3],'#9fd8ff',.45);
- if(ghostSel.value==='__race'&&started){const tt=performance.now()-lapStart;x.font='11px monospace';x.textAlign='center';for(const hg of houseGhosts){const q=posIn(hg.path,tt);kart(q[1],q[2],q[3],hg.color||'#9fd8ff',.55);x.fillStyle=hg.color||'#9fd8ff';x.fillText(hg.kin,q[1],q[2]-14)}}
- const f=s=>s==null?'--':(s/1000).toFixed(2)+'s';x.fillStyle='#ffd98a';x.font='16px monospace';x.textAlign='left';
- x.fillText(`Lap ${laps+1}  Time ${started?f(performance.now()-lapStart):'press ↑ to start'}  Last ${f(last)}  Best ${f(best)}  Gear ${gear}${gear==2?' (SHIFT!)':''}`,12,22);
- x.fillText(ghostSel.value==='__race'?`Race Night: ${houseGhosts.length?houseGhosts.map(h=>h.kin+' '+f(h.time)).join(', '):'no house ghosts loaded'}`:ghost?`Ghost: ${ghostSel.value} ${f(ghost.time)}`:`No ghost for ${ghostSel.value} yet`,12,44);x.fillText(`Gates ${gates.size}/${GATES}`,12,66);if(performance.now()-msgT<2500){x.fillStyle='#ff9a7a';x.fillText(msg,12,88)}}
-let prev=performance.now();function loop(n){const dt=Math.min(.05,(n-prev)/1000);prev=n;step(dt);draw();requestAnimationFrame(loop)}requestAnimationFrame(loop);
-window.__gk={car,get laps(){return laps},get ghost(){return ghost},get best(){return best},get started(){return started},get recLen(){return rec.length},get gates(){return gates.size},get houseGhosts(){return houseGhosts}};
-</script></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Night Shift Pong</title>
+  <style>
+    :root {
+      --bg1: #040816;
+      --bg2: #121b34;
+      --panel: rgba(17, 24, 39, 0.9);
+      --line: rgba(148, 163, 184, 0.35);
+      --text: #e2e8f0;
+      --accent: #7dd3fc;
+      --accent-2: #c084fc;
+      --paddle: #f8fafc;
+      --ball: #fbbf24;
+      --win: #34d399;
+      --lose: #f87171;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at top, #1d2b4d 0%, var(--bg1) 42%, #020611 100%);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+      overflow: hidden;
+    }
+
+    .game-shell {
+      background: var(--panel);
+      border: 2px solid var(--line);
+      border-radius: 18px;
+      padding: 18px 18px 12px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.45), 0 0 30px rgba(125, 211, 252, 0.15);
+    }
+
+    .scoreboard {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 800px;
+      max-width: 90vw;
+      margin: 0 auto 12px;
+      font-size: 2.2rem;
+      letter-spacing: 3px;
+      font-weight: 700;
+      text-shadow: 0 0 12px rgba(125, 211, 252, 0.7);
+    }
+
+    .score {
+      min-width: 90px;
+      text-align: center;
+    }
+
+    canvas {
+      display: block;
+      width: 800px;
+      max-width: 90vw;
+      height: auto;
+      background: linear-gradient(180deg, rgba(11,17,32,0.95), rgba(6,11,20,1));
+      border-radius: 10px;
+      border: 2px solid rgba(148,163,184,0.2);
+      box-shadow: inset 0 0 18px rgba(125, 211, 252, 0.08);
+    }
+
+    .controls {
+      margin-top: 14px;
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 10px 20px;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      color: #042033;
+      background: linear-gradient(135deg, var(--accent), #a5f3fc);
+      box-shadow: 0 8px 18px rgba(125, 211, 252, 0.25);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 20px rgba(125, 211, 252, 0.35);
+    }
+
+    button.secondary {
+      background: linear-gradient(135deg, #c4b5fd, #ddd6fe);
+    }
+
+    @media (max-width: 720px) {
+      .scoreboard {
+        font-size: 1.7rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+    <div class="scoreboard">
+      <div class="score" id="leftScore">0</div>
+      <div>:</div>
+      <div class="score" id="rightScore">0</div>
+    </div>
+
+    <canvas id="gameCanvas" width="800" height="500"></canvas>
+
+    <div class="controls">
+      <button id="startBtn">Start</button>
+      <button id="pauseBtn" class="secondary">Pause</button>
+      <button id="restartBtn" class="secondary">Restart</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const leftScoreEl = document.getElementById("leftScore");
+    const rightScoreEl = document.getElementById("rightScore");
+    const startBtn = document.getElementById("startBtn");
+    const pauseBtn = document.getElementById("pauseBtn");
+    const restartBtn = document.getElementById("restartBtn");
+
+    const paddleWidth = 14;
+    const paddleHeight = 110;
+    const ballRadius = 9;
+    const maxScore = 5;
+
+    const leftPaddle = { x: 22, y: canvas.height / 2 - paddleHeight / 2, speed: 7 };
+    const rightPaddle = { x: canvas.width - 22 - paddleWidth, y: canvas.height / 2 - paddleHeight / 2, speed: 5.5 };
+
+    let ball = { x: canvas.width / 2, y: canvas.height / 2, vx: 5.5, vy: 3.5, radius: ballRadius };
+    let leftScore = 0;
+    let rightScore = 0;
+    let gameState = "ready"; // ready, playing, paused, finished
+    let lastTime = 0;
+
+    const keys = { ArrowUp: false, ArrowDown: false };
+    const mouse = { active: false, y: canvas.height / 2 };
+
+    let audioCtx = null;
+
+    function ensureAudio() {
+      if (!audioCtx) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) audioCtx = new AudioCtx();
+      }
+      if (audioCtx && audioCtx.state === "suspended") {
+        audioCtx.resume();
+      }
+    }
+
+    function playTone(frequency, duration, type = "sine", volume = 0.04) {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = type;
+      osc.frequency.value = frequency;
+      gain.gain.value = volume;
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start();
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+      osc.stop(audioCtx.currentTime + duration);
+    }
+
+    function playPaddleSound() {
+      playTone(240, 0.06, "square", 0.05);
+    }
+
+    function playScoreSound() {
+      playTone(180, 0.09, "triangle", 0.05);
+      setTimeout(() => playTone(120, 0.12, "triangle", 0.04), 60);
+    }
+
+    function playWinSound() {
+      playTone(440, 0.12, "sine", 0.08);
+      setTimeout(() => playTone(660, 0.18, "triangle", 0.08), 100);
+      setTimeout(() => playTone(880, 0.2, "triangle", 0.08), 200);
+    }
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+        keys[event.key] = true;
+        event.preventDefault();
+      }
+
+      if (event.code === "Space") {
+        event.preventDefault();
+        togglePause();
+      }
+    });
+
+    document.addEventListener("keyup", (event) => {
+      if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+        keys[event.key] = false;
+      }
+    });
+
+    canvas.addEventListener("mousemove", (event) => {
+      const rect = canvas.getBoundingClientRect();
+      const scaleY = canvas.height / rect.height;
+      mouse.y = (event.clientY - rect.top) * scaleY;
+      mouse.active = true;
+    });
+
+    startBtn.addEventListener("click", () => {
+      ensureAudio();
+      startGame();
+    });
+
+    restartBtn.addEventListener("click", () => {
+      ensureAudio();
+      resetMatch();
+      startGame();
+    });
+
+    pauseBtn.addEventListener("click", () => {
+      ensureAudio();
+      togglePause();
+    });
+
+    function resetBall(direction = Math.random() < 0.5 ? -1 : 1) {
+      ball.x = canvas.width / 2;
+      ball.y = canvas.height / 2;
+
+      const angle = (Math.random() * Math.PI / 2) - Math.PI / 4;
+      const speed = 6.2 + (Math.random() * 0.8);
+
+      ball.vx = Math.cos(angle) * speed * direction;
+      ball.vy = Math.sin(angle) * speed;
+    }
+
+    function updateLeftPaddle() {
+      if (mouse.active) {
+        leftPaddle.y = mouse.y - paddleHeight / 2;
+      }
+
+      if (keys.ArrowUp) leftPaddle.y -= leftPaddle.speed;
+      if (keys.ArrowDown) leftPaddle.y += leftPaddle.speed;
+
+      leftPaddle.y = Math.max(0, Math.min(canvas.height - paddleHeight, leftPaddle.y));
+    }
+
+    function updateRightPaddle() {
+      const target = ball.y - rightPaddle.y - paddleHeight / 2;
+      rightPaddle.y += target * 0.12;
+      rightPaddle.y = Math.max(0, Math.min(canvas.height - paddleHeight, rightPaddle.y));
+    }
+
+    function handleWallCollision() {
+      if (ball.y - ball.radius <= 0) {
+        ball.y = ball.radius;
+        ball.vy *= -1;
+      }
+
+      if (ball.y + ball.radius >= canvas.height) {
+        ball.y = canvas.height - ball.radius;
+        ball.vy *= -1;
+      }
+    }
+
+    function handlePaddleCollision() {
+      const leftHit =
+        ball.x - ball.radius <= leftPaddle.x + paddleWidth &&
+        ball.x - ball.radius >= leftPaddle.x &&
+        ball.y >= leftPaddle.y &&
+        ball.y <= leftPaddle.y + paddleHeight &&
+        ball.vx < 0;
+
+      if (leftHit) {
+        const relative = (ball.y - (leftPaddle.y + paddleHeight / 2)) / (paddleHeight / 2);
+        const angle = relative * (Math.PI / 3);
+        const speed = Math.min(Math.hypot(ball.vx, ball.vy) + 0.8, 12.5);
+
+        ball.vx = Math.cos(angle) * speed;
+        ball.vy = Math.sin(angle) * speed;
+        ball.x = leftPaddle.x + paddleWidth + ball.radius;
+        playPaddleSound();
+      }
+
+      const rightHit =
+        ball.x + ball.radius >= rightPaddle.x &&
+        ball.x + ball.radius <= rightPaddle.x + paddleWidth &&
+        ball.y >= rightPaddle.y &&
+        ball.y <= rightPaddle.y + paddleHeight &&
+        ball.vx > 0;
+
+      if (rightHit) {
+        const relative = (ball.y - (rightPaddle.y + paddleHeight / 2)) / (paddleHeight / 2);
+        const angle = relative * (Math.PI / 3);
+        const speed = Math.min(Math.hypot(ball.vx, ball.vy) + 0.8, 12.5);
+
+        ball.vx = -Math.cos(angle) * speed;
+        ball.vy = Math.sin(angle) * speed;
+        ball.x = rightPaddle.x - ball.radius;
+        playPaddleSound();
+      }
+    }
+
+    function updateScore() {
+      if (ball.x + ball.radius < 0) {
+        rightScore++;
+        rightScoreEl.textContent = rightScore;
+        playScoreSound();
+        checkWinner();
+        if (gameState !== "finished") resetBall(1);
+      }
+
+      if (ball.x - ball.radius > canvas.width) {
+        leftScore++;
+        leftScoreEl.textContent = leftScore;
+        playScoreSound();
+        checkWinner();
+        if (gameState !== "finished") resetBall(-1);
+      }
+    }
+
+    function checkWinner() {
+      if (leftScore >= maxScore || rightScore >= maxScore) {
+        gameState = "finished";
+        pauseBtn.textContent = "Pause";
+        playWinSound();
+      }
+    }
+
+    function startGame() {
+      if (gameState === "finished") {
+        resetMatch();
+      }
+      gameState = "playing";
+      pauseBtn.textContent = "Pause";
+      startBtn.textContent = "Play Again";
+      if (leftScore === 0 && rightScore === 0) {
+        resetBall(Math.random() < 0.5 ? -1 : 1);
+      }
+    }
+
+    function resetMatch() {
+      leftScore = 0;
+      rightScore = 0;
+      leftScoreEl.textContent = "0";
+      rightScoreEl.textContent = "0";
+      leftPaddle.y = canvas.height / 2 - paddleHeight / 2;
+      rightPaddle.y = canvas.height / 2 - paddleHeight / 2;
+      resetBall(Math.random() < 0.5 ? -1 : 1);
+      gameState = "ready";
+      pauseBtn.textContent = "Pause";
+      startBtn.textContent = "Start";
+    }
+
+    function togglePause() {
+      if (gameState === "ready" || gameState === "finished") {
+        return;
+      }
+
+      gameState = gameState === "paused" ? "playing" : "paused";
+      pauseBtn.textContent = gameState === "paused" ? "Resume" : "Pause";
+    }
+
+    function update() {
+      if (gameState !== "playing") return;
+
+      updateLeftPaddle();
+      updateRightPaddle();
+
+      ball.x += ball.vx;
+      ball.y += ball.vy;
+
+      handleWallCollision();
+      handlePaddleCollision();
+      updateScore();
+    }
+
+    function drawBackground() {
+      ctx.fillStyle = "#071221";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.strokeStyle = "rgba(148,163,184,0.28)";
+      ctx.setLineDash([14, 16]);
+      ctx.beginPath();
+      ctx.moveTo(canvas.width / 2, 0);
+      ctx.lineTo(canvas.width / 2, canvas.height);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      for (let i = 0; i < canvas.height; i += 30) {
+        ctx.fillStyle = i % 60 === 0 ? "rgba(125,211,252,0.05)" : "rgba(192,132,252,0.03)";
+        ctx.fillRect(0, i, canvas.width, 15);
+      }
+    }
+
+    function drawPaddle(x, y) {
+      ctx.fillStyle = "#f8fafc";
+      ctx.shadowColor = "rgba(148, 163, 184, 0.7)";
+      ctx.shadowBlur = 10;
+      ctx.fillRect(x, y, paddleWidth, paddleHeight);
+      ctx.shadowBlur = 0;
+    }
+
+    function drawBall() {
+      ctx.fillStyle = "#fbbf24";
+      ctx.shadowColor = "rgba(251, 191, 36, 0.8)";
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    function drawCenterText() {
+      ctx.textAlign = "center";
+      ctx.font = "bold 30px Arial";
+
+      if (gameState === "ready") {
+        ctx.fillStyle = "rgba(226, 232, 240, 0.9)";
+        ctx.fillText("Press Start", canvas.width / 2, canvas.height / 2 - 20);
+        ctx.font = "18px Arial";
+        ctx.fillStyle = "rgba(148, 163, 184, 0.9)";
+        ctx.fillText("Mouse + Arrow Up / Down · Space to pause", canvas.width / 2, canvas.height / 2 + 18);
+      }
+
+      if (gameState === "paused") {
+        ctx.fillStyle = "rgba(226, 232, 240, 0.95)";
+        ctx.font = "bold 34px Arial";
+        ctx.fillText("Paused", canvas.width / 2, canvas.height / 2 - 10);
+      }
+
+      if (gameState === "finished") {
+        const winner = leftScore >= maxScore ? "Player 1 Wins" : "Computer Wins";
+        ctx.fillStyle = leftScore >= maxScore ? "#34d399" : "#f87171";
+        ctx.font = "bold 38px Arial";
+        ctx.fillText(winner, canvas.width / 2, canvas.height / 2 - 12);
+        ctx.font = "20px Arial";
+        ctx.fillStyle = "rgba(226, 232, 240, 0.9)";
+        ctx.fillText("Press Start or Restart to play again", canvas.width / 2, canvas.height / 2 + 22);
+      }
+    }
+
+    function draw() {
+      drawBackground();
+      drawPaddle(leftPaddle.x, leftPaddle.y);
+      drawPaddle(rightPaddle.x, rightPaddle.y);
+      drawBall();
+      drawCenterText();
+    }
+
+    function gameLoop(timestamp) {
+      const delta = Math.min(0.03, (timestamp - lastTime) / 1000 || 0.016);
+      lastTime = timestamp;
+
+      update();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    resetMatch();
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>
