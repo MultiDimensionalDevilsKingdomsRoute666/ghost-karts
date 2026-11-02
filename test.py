@@ -1,11 +1,16 @@
-import math,asyncio
+import math,asyncio,os,subprocess,time
 from playwright.async_api import async_playwright
 async def main():
+  srv=subprocess.Popen(['python3','-m','http.server','8771'],cwd=os.path.dirname(os.path.abspath(__file__)),stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1)
+  try:
+   await run()
+  finally: srv.terminate()
+async def run():
   async with async_playwright() as p:
     b=await p.chromium.launch(executable_path='/usr/bin/google-chrome',args=['--headless=new'])
     pg=await b.new_page(viewport={'width':820,'height':620});errs=[]
     pg.on('pageerror',lambda e:errs.append(str(e)));pg.on('console',lambda m:m.type=='error' and errs.append(m.text))
-    await pg.goto('file://'+__import__('os').path.abspath('index.html'))
+    await pg.goto('http://localhost:8771/index.html');await pg.wait_for_timeout(800);assert not await pg.evaluate('__gk.started'),'timer started before input'
     await pg.keyboard.down('ArrowUp');held=None;shift=False;seen=False
     for i in range(3000):
       s=await pg.evaluate('({x:__gk.car.x,y:__gk.car.y,a:__gk.car.a,l:__gk.laps,g:!!__gk.ghost})')
@@ -24,5 +29,5 @@ async def main():
       await pg.wait_for_timeout(30)
     await pg.wait_for_timeout(1500)
     r=await pg.evaluate('({laps:__gk.laps,ghost:__gk.ghost&&__gk.ghost.time,best:__gk.best,ls:Object.keys(localStorage)})')
-    await pg.screenshot(path='shot.png');print(r,'errors:',errs);await b.close()
+    await pg.screenshot(path='shot.png');print(r,'houseGhosts:',await pg.evaluate('__gk.houseGhosts.length'),'errors:',errs);await b.close()
 asyncio.run(main())

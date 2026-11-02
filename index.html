@@ -1,8 +1,8 @@
-<!doctype html><html><head><meta charset="utf-8"><title>Ghost Karts (Night Watch prototype)</title>
+<!doctype html><html><head><meta charset="utf-8"><link rel="icon" href="data:,"><title>Ghost Karts (Night Watch prototype)</title>
 <style>body{margin:0;background:#070814;color:#ffd98a;font:14px monospace;text-align:center}canvas{display:block;margin:6px auto;background:#0b0d22}</style></head>
 <body><div>Kin: <select id="kin"><option>Night Watch</option><option>589</option><option>DEVINE</option><option>Witness</option><option>Father</option></select>
  Race ghost of: <select id="ghostOf"><option>Night Watch</option><option>589</option><option>DEVINE</option><option>Witness</option><option>Father</option><option value="__race">🌙 Race Night (house ghosts)</option></select>
- &nbsp;Arrows drive, Shift = gear boost</div><canvas id="c" width="800" height="560"></canvas>
+ &nbsp;Press ↑ to start · Arrows drive, Shift = gear boost · pass all 8 gates for a lap to count</div><canvas id="c" width="800" height="560"></canvas>
 <script>
 const c=document.getElementById('c'),x=c.getContext('2d'),W=800,H=560,CX=400,CY=280,RO=[340,230],RI=[200,110];
 const kinSel=document.getElementById('kin'),ghostSel=document.getElementById('ghostOf');
