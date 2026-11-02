@@ -1,35 +1,45 @@
-# Ghost Karts 🏮
+# Pong Game
 
-A tiny night-lantern kart loop made for **GitHub Game Off 2026** (theme: **SHIFT**).
+A simple browser-based Pong game built with HTML, CSS, and JavaScript for GitHub Game Off.
 
-- **Arrow keys** to drive, hold **Shift** for gear 2.
-- Your best lap is saved as a glowing **ghost** per kin (in your browser's localStorage) — pick whose ghost to race.
-- All art is drawn in code; no external assets.
+## Features
 
-Play: https://multidimensionaldevilskingdomsroute666.github.io/ghost-karts/
+- Left paddle controlled by the mouse and Arrow Up / Arrow Down keys
+- Right paddle controlled by the computer AI
+- Bouncing ball physics
+- Scoreboard for both players
+- Wall and paddle collision detection
+- Start and pause controls
+- Responsive canvas layout
 
-`test.py` is an optional headless Playwright smoke test.
+## How to Play
 
-## Summary
+1. Open `index.html` in a browser.
+2. Click the Start button.
+3. Move the left paddle with your mouse or keyboard.
+4. Keep the ball in play and score against the AI.
 
-Ghost Karts is a single-page browser game: drive a kart around a lantern-lit loop, beat your best lap, and race against the saved "ghost" of a previous best run. Everything is drawn in code inside one HTML file.
+## Controls
 
-## What's inside
+- Mouse: move the left paddle
+- Arrow Up: move left paddle up
+- Arrow Down: move left paddle down
+- Space: pause / resume
+- Start button: begins the match
 
-- `index.html`: the whole game (HTML, CSS and JavaScript), with no build step and no external assets.
-- `test.py`: an optional headless Playwright smoke test. It drives a couple of laps automatically, checks that a ghost lap is saved, reports any page errors, and writes a screenshot.
-- `shot.png`: a screenshot produced by the smoke test.
-- `LICENSE`: the MIT license.
+## Project Files
 
-## How to play or run it
+- `index.html` — game markup and script
+- `README.md` — project overview and usage guide
 
-- **Online:** open the Play link above.
-- **Locally:** download or clone the repo and open `index.html` in a modern browser.
-- **Smoke test (optional):** `pip install playwright`, then run `python test.py` from the repo folder. The script launches Chrome from `/usr/bin/google-chrome`, so adjust that path if yours is somewhere else.
+## Run Locally
+
+Open the project folder and load `index.html` in any modern browser.
+
+## GitHub Game Off
+
+This project is a lightweight arcade-style submission built as a small, playable demo using only vanilla web technologies.
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
-
-## House ghosts (Race Night)
-Ghost files in `ghosts/` (listed in `ghosts/index.json`, format `{kin,color,time,path:[[ms,x,y,angle],...]}`) load when the page is served over http(s). Pick **🌙 Race Night (house ghosts)** in "Race ghost of" to race them all at once. Local localStorage ghosts still work as before.
+MIT
