@@ -6,8 +6,8 @@
   <title>Night Shift Pong</title>
   <style>
     :root {
-      --bg1: #050b18;
-      --bg2: #101d39;
+      --bg1: #040b18;
+      --bg2: #0d1830;
       --panel: rgba(15, 23, 42, 0.9);
       --line: rgba(148, 163, 184, 0.35);
       --text: #e2e8f0;
@@ -21,27 +21,30 @@
 
     * { box-sizing: border-box; }
 
-    body {
+    html, body {
       margin: 0;
       min-height: 100vh;
-      display: grid;
-      place-items: center;
-      background: radial-gradient(circle at top, #1f2f56 0%, var(--bg1) 38%, #020711 100%);
+      background: radial-gradient(circle at top, #1d2f56 0%, var(--bg1) 38%, #020712 100%);
       color: var(--text);
       font-family: Arial, Helvetica, sans-serif;
       overflow: hidden;
     }
 
+    body {
+      display: grid;
+      place-items: center;
+    }
+
     .game-shell {
       position: relative;
-      background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.96));
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(2, 6, 23, 0.97));
       border: 2px solid var(--line);
       border-radius: 22px;
       padding: 18px 18px 12px;
       box-shadow:
         0 28px 60px rgba(0,0,0,0.5),
-        0 0 30px rgba(125, 211, 252, 0.18),
-        inset 0 0 25px rgba(125,211,252,0.05);
+        0 0 30px rgba(125, 211, 252, 0.16),
+        inset 0 0 25px rgba(125,211,252,0.04);
     }
 
     .scoreboard {
@@ -54,7 +57,7 @@
       font-size: 2.4rem;
       letter-spacing: 4px;
       font-weight: 800;
-      text-shadow: 0 0 16px rgba(125, 211, 252, 0.8);
+      text-shadow: 0 0 16px rgba(125, 211, 252, 0.85);
     }
 
     .score {
@@ -114,7 +117,7 @@
       top: 50%;
       transform: translate(-50%, -50%);
       width: min(86%, 520px);
-      background: rgba(3, 7, 18, 0.72);
+      background: rgba(3, 7, 18, 0.76);
       border: 2px solid rgba(125, 211, 252, 0.3);
       border-radius: 18px;
       box-shadow: 0 0 40px rgba(125, 211, 252, 0.12);
@@ -141,14 +144,16 @@
       letter-spacing: 1px;
     }
 
+    .mode-row,
     .difficulty-row {
       display: flex;
       justify-content: center;
       gap: 10px;
       flex-wrap: wrap;
-      margin-bottom: 16px;
+      margin-bottom: 18px;
     }
 
+    .mode-btn,
     .difficulty-btn {
       padding: 10px 16px;
       font-size: 0.95rem;
@@ -159,6 +164,7 @@
       box-shadow: none;
     }
 
+    .mode-btn.active,
     .difficulty-btn.active {
       background: linear-gradient(135deg, rgba(125, 211, 252, 0.25), rgba(192, 132, 252, 0.25));
       border-color: rgba(125, 211, 252, 0.75);
@@ -210,6 +216,11 @@
       <h1 class="title">Night Shift Pong</h1>
       <p class="subtitle">Neon arcade showdown</p>
 
+      <div class="mode-row">
+        <button class="mode-btn active" data-mode="solo">Solo vs AI</button>
+        <button class="mode-btn" data-mode="local">Local 2P</button>
+      </div>
+
       <div class="difficulty-row">
         <button class="difficulty-btn active" data-difficulty="easy">Easy</button>
         <button class="difficulty-btn" data-difficulty="normal">Normal</button>
@@ -221,8 +232,14 @@
       </div>
 
       <div class="instructions">
-        <strong>Controls:</strong> mouse or <strong>Arrow Up</strong> / <strong>Arrow Down</strong> to move your paddle.<br>
-        <strong>Pause:</strong> Space or the pause button.<br>
+        <strong>Controls:</strong>
+        <br>
+        Solo: mouse or <strong>Arrow Up</strong> / <strong>Arrow Down</strong> for left paddle.
+        <br>
+        Local 2P: left uses mouse/Arrow keys, right uses <strong>W</strong> / <strong>S</strong>.
+        <br>
+        <strong>Pause:</strong> Space or the pause button.
+        <br>
         <strong>Goal:</strong> first to 5 points wins.
       </div>
     </div>
@@ -239,9 +256,11 @@
     const restartBtn = document.getElementById("restartBtn");
     const menuOverlay = document.getElementById("menuOverlay");
     const menuStartBtn = document.getElementById("menuStartBtn");
+    const modeButtons = [...document.querySelectorAll(".mode-btn")];
     const difficultyButtons = [...document.querySelectorAll(".difficulty-btn")];
 
-    const preferences = {
+    const settings = {
+      mode: "solo",
       difficulty: "easy",
       maxScore: 5
     };
@@ -263,10 +282,16 @@
     let leftScore = 0;
     let rightScore = 0;
     let gameState = "menu";
-    let lastTime = 0;
     let winnerText = "";
+    let lastTime = 0;
 
-    const keys = { ArrowUp: false, ArrowDown: false };
+    const keys = {
+      ArrowUp: false,
+      ArrowDown: false,
+      w: false,
+      s: false
+    };
+
     const mouse = { active: false, y: canvas.height / 2 };
     let audioCtx = null;
 
@@ -312,18 +337,30 @@
       setTimeout(() => playTone(840, 0.2, "triangle", 0.07), 220);
     }
 
+    modeButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        settings.mode = button.dataset.mode;
+        modeButtons.forEach((btn) => btn.classList.toggle("active", btn === button));
+      });
+    });
+
     difficultyButtons.forEach((button) => {
       button.addEventListener("click", () => {
-        preferences.difficulty = button.dataset.difficulty;
+        settings.difficulty = button.dataset.difficulty;
         difficultyButtons.forEach((btn) => btn.classList.toggle("active", btn === button));
       });
     });
 
     document.addEventListener("keydown", (event) => {
+      const key = event.key.toLowerCase();
+
       if (event.key === "ArrowUp" || event.key === "ArrowDown") {
         keys[event.key] = true;
         event.preventDefault();
       }
+
+      if (key === "w") keys.w = true;
+      if (key === "s") keys.s = true;
 
       if (event.code === "Space") {
         event.preventDefault();
@@ -332,9 +369,14 @@
     });
 
     document.addEventListener("keyup", (event) => {
+      const key = event.key.toLowerCase();
+
       if (event.key === "ArrowUp" || event.key === "ArrowDown") {
         keys[event.key] = false;
       }
+
+      if (key === "w") keys.w = false;
+      if (key === "s") keys.s = false;
     });
 
     canvas.addEventListener("mousemove", (event) => {
@@ -388,9 +430,15 @@
     }
 
     function updateRightPaddle() {
-      const currentDifficulty = difficultyMap[preferences.difficulty];
-      const target = ball.y - rightPaddle.y - paddleHeight / 2;
-      rightPaddle.y += target * currentDifficulty.aiFactor;
+      if (settings.mode === "solo") {
+        const currentDifficulty = difficultyMap[settings.difficulty];
+        const target = ball.y - rightPaddle.y - paddleHeight / 2;
+        rightPaddle.y += target * currentDifficulty.aiFactor;
+      } else {
+        if (keys.w) rightPaddle.y -= rightPaddle.speed;
+        if (keys.s) rightPaddle.y += rightPaddle.speed;
+      }
+
       rightPaddle.y = Math.max(0, Math.min(canvas.height - paddleHeight, rightPaddle.y));
     }
 
@@ -415,9 +463,9 @@
         ball.vx < 0;
 
       if (leftHit) {
-        const rel = (ball.y - (leftPaddle.y + paddleHeight / 2)) / (paddleHeight / 2);
-        const angle = rel * (Math.PI / 3);
-        const speed = Math.min(Math.hypot(ball.vx, ball.vy) + 0.8, difficultyMap[preferences.difficulty].maxBallSpeed);
+        const relative = (ball.y - (leftPaddle.y + paddleHeight / 2)) / (paddleHeight / 2);
+        const angle = relative * (Math.PI / 3);
+        const speed = Math.min(Math.hypot(ball.vx, ball.vy) + 0.8, difficultyMap[settings.difficulty].maxBallSpeed);
 
         ball.vx = Math.cos(angle) * speed;
         ball.vy = Math.sin(angle) * speed;
@@ -433,15 +481,37 @@
         ball.vx > 0;
 
       if (rightHit) {
-        const rel = (ball.y - (rightPaddle.y + paddleHeight / 2)) / (paddleHeight / 2);
-        const angle = rel * (Math.PI / 3);
-        const speed = Math.min(Math.hypot(ball.vx, ball.vy) + 0.8, difficultyMap[preferences.difficulty].maxBallSpeed);
+        const relative = (ball.y - (rightPaddle.y + paddleHeight / 2)) / (paddleHeight / 2);
+        const angle = relative * (Math.PI / 3);
+        const speed = Math.min(Math.hypot(ball.vx, ball.vy) + 0.8, difficultyMap[settings.difficulty].maxBallSpeed);
 
         ball.vx = -Math.cos(angle) * speed;
         ball.vy = Math.sin(angle) * speed;
         ball.x = rightPaddle.x - ball.radius;
         playPaddleSound();
       }
+    }
+
+    function checkWinner() {
+      if (leftScore >= settings.maxScore || rightScore >= settings.maxScore) {
+        winnerText = leftScore >= settings.maxScore ? "Player 1 Wins" : (settings.mode === "solo" ? "Computer Wins" : "Player 2 Wins");
+        gameState = "finished";
+        pauseBtn.textContent = "Pause";
+        menuOverlay.classList.remove("hidden");
+        menuOverlay.querySelector(".title").textContent = winnerText;
+        menuOverlay.querySelector(".subtitle").textContent = leftScore >= settings.maxScore ? "You took the neon crown." : "A clean victory.";
+        menuOverlay.querySelector(".mode-row").classList.add("hidden");
+        menuOverlay.querySelector(".difficulty-row").classList.add("hidden");
+        menuOverlay.querySelector(".menu-actions").innerHTML = '<button id="menuPlayAgainBtn">Play Again</button>';
+        menuOverlay.querySelector(".instructions").innerHTML = '<strong>Rematch?</strong><br>Jump back in and see if the result changes.';
+        document.getElementById("menuPlayAgainBtn").addEventListener("click", () => {
+          resetMatch();
+          startGame();
+        });
+        playWinSound();
+        return true;
+      }
+      return false;
     }
 
     function updateScore() {
@@ -458,29 +528,6 @@
         playScoreSound();
         if (!checkWinner()) resetBall(-1);
       }
-    }
-
-    function checkWinner() {
-      if (leftScore >= preferences.maxScore || rightScore >= preferences.maxScore) {
-        if (leftScore >= preferences.maxScore) {
-          winnerText = "Player Wins";
-        } else {
-          winnerText = "Computer Wins";
-        }
-        gameState = "finished";
-        pauseBtn.textContent = "Pause";
-        menuOverlay.classList.remove("hidden");
-        menuOverlay.querySelector(".title").textContent = winnerText;
-        menuOverlay.querySelector(".subtitle").textContent = leftScore >= preferences.maxScore ? "You took the neon crown." : "The AI won this round.";
-        menuOverlay.querySelector(".menu-actions").innerHTML = '<button id="menuPlayAgainBtn">Play Again</button>';
-        document.getElementById("menuPlayAgainBtn").addEventListener("click", () => {
-          resetMatch();
-          startGame();
-        });
-        playWinSound();
-        return true;
-      }
-      return false;
     }
 
     function startGame() {
@@ -506,11 +553,15 @@
       gameState = "menu";
       pauseBtn.textContent = "Pause";
       startBtn.textContent = "Start";
+      winnerText = "";
 
       menuOverlay.classList.remove("hidden");
       menuOverlay.querySelector(".title").textContent = "Night Shift Pong";
       menuOverlay.querySelector(".subtitle").textContent = "Neon arcade showdown";
+      menuOverlay.querySelector(".mode-row").classList.remove("hidden");
+      menuOverlay.querySelector(".difficulty-row").classList.remove("hidden");
       menuOverlay.querySelector(".menu-actions").innerHTML = '<button id="menuStartBtn">Play</button>';
+      menuOverlay.querySelector(".instructions").innerHTML = '<strong>Controls:</strong><br>Solo: mouse or <strong>Arrow Up</strong> / <strong>Arrow Down</strong> for left paddle.<br>Local 2P: left uses mouse/Arrow keys, right uses <strong>W</strong> / <strong>S</strong>.<br><strong>Pause:</strong> Space or the pause button.<br><strong>Goal:</strong> first to 5 points wins.';
       document.getElementById("menuStartBtn").addEventListener("click", () => {
         ensureAudio();
         startGame();
@@ -582,7 +633,7 @@
         ctx.fillText("Ready?", canvas.width / 2, canvas.height / 2 - 18);
         ctx.font = "18px Arial";
         ctx.fillStyle = "rgba(148, 163, 184, 0.9)";
-        ctx.fillText("Mouse + Arrow keys · Space to pause", canvas.width / 2, canvas.height / 2 + 18);
+        ctx.fillText("Mouse + Arrow keys · W/S for 2P · Space to pause", canvas.width / 2, canvas.height / 2 + 18);
       }
 
       if (gameState === "paused") {
@@ -592,7 +643,7 @@
       }
 
       if (gameState === "finished") {
-        ctx.fillStyle = leftScore >= preferences.maxScore ? "#34d399" : "#f87171";
+        ctx.fillStyle = leftScore >= settings.maxScore ? "#34d399" : "#f87171";
         ctx.font = "bold 38px Arial";
         ctx.fillText(winnerText, canvas.width / 2, canvas.height / 2 - 12);
         ctx.font = "20px Arial";
