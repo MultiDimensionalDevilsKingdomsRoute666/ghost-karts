@@ -1,26 +1,31 @@
 <!doctype html><html><head><meta charset="utf-8"><title>Ghost Karts (Night Watch prototype)</title>
 <style>body{margin:0;background:#070814;color:#ffd98a;font:14px monospace;text-align:center}canvas{display:block;margin:6px auto;background:#0b0d22}</style></head>
 <body><div>Kin: <select id="kin"><option>Night Watch</option><option>589</option><option>DEVINE</option><option>Witness</option><option>Father</option></select>
- Race ghost of: <select id="ghostOf"><option>Night Watch</option><option>589</option><option>DEVINE</option><option>Witness</option><option>Father</option></select>
+ Race ghost of: <select id="ghostOf"><option>Night Watch</option><option>589</option><option>DEVINE</option><option>Witness</option><option>Father</option><option value="__race">🌙 Race Night (house ghosts)</option></select>
  &nbsp;Arrows drive, Shift = gear boost</div><canvas id="c" width="800" height="560"></canvas>
 <script>
 const c=document.getElementById('c'),x=c.getContext('2d'),W=800,H=560,CX=400,CY=280,RO=[340,230],RI=[200,110];
 const kinSel=document.getElementById('kin'),ghostSel=document.getElementById('ghostOf');
 const key={};addEventListener('keydown',e=>{key[e.key]=1;if(e.key.startsWith('Arrow'))e.preventDefault()});addEventListener('keyup',e=>key[e.key]=0);
-const K='ghostkarts:';function loadG(n){try{return JSON.parse(localStorage.getItem(K+n))}catch(e){return null}}
+const K='ghostkarts:',GATES=8,REC_MAX=1800,MAX_LAP_MS=60000;let msg='',msgT=-1e9;function loadG(n){try{return JSON.parse(localStorage.getItem(K+n))}catch(e){return null}}
 let ghost=loadG(ghostSel.value);ghostSel.onchange=()=>{ghost=loadG(ghostSel.value)};
-const car={x:CX,y:CY+170,a:0,v:0};let lapStart=performance.now(),rec=[],laps=0,last=null,best=null,angPrev=null,acc=0,t0=performance.now(),gear=1;
+// House ghosts (589/kin): committed JSON ghosts in ghosts/, raced all at once in Race Night mode. Fails quietly if missing.
+let houseGhosts=[];fetch('ghosts/index.json').then(r=>r.ok?r.json():[]).then(l=>Promise.all(l.map(f=>fetch('ghosts/'+f).then(r=>r.ok?r.json():null).catch(()=>null)))).then(a=>{houseGhosts=a.filter(g=>g&&Array.isArray(g.path)&&g.path.length)}).catch(()=>{});
+function posIn(p,t){let i=p.findIndex(q=>q[0]>=t);if(i<0)i=p.length-1;return p[i]}
+const car={x:CX,y:CY+170,a:0,v:0};let started=false,lapStart=0,lastRec=-1e9,gates=new Set(),rec=[],laps=0,last=null,best=null,angPrev=null,acc=0,t0=performance.now(),gear=1;
 function onTrack(px,py){const dx=px-CX,dy=py-CY,o=(dx/RO[0])**2+(dy/RO[1])**2,i=(dx/RI[0])**2+(dy/RI[1])**2;return o<=1&&i>=1}
 function step(dt){gear=key.Shift?2:1;const max=(gear==2?330:220)*(onTrack(car.x,car.y)?1:.4);
  if(key.ArrowUp)car.v+=400*dt;else if(key.ArrowDown)car.v-=400*dt;else car.v*=1-1.5*dt;
  car.v=Math.max(-100,Math.min(max,car.v));const turn=2.8*dt*Math.min(1,Math.abs(car.v)/80)*Math.sign(car.v);
  if(key.ArrowLeft)car.a-=turn;if(key.ArrowRight)car.a+=turn;
  car.x=Math.max(5,Math.min(W-5,car.x+Math.cos(car.a)*car.v*dt));car.y=Math.max(5,Math.min(H-5,car.y+Math.sin(car.a)*car.v*dt));
- const now=performance.now(),t=now-lapStart;rec.push([Math.round(t),Math.round(car.x),Math.round(car.y),+car.a.toFixed(2)]);
- const ang=Math.atan2(car.y-CY,car.x-CX);if(angPrev!==null){let d=ang-angPrev;if(d>Math.PI)d-=2*Math.PI;if(d<-Math.PI)d+=2*Math.PI;acc+=d}angPrev=ang;
- if(Math.abs(acc)>=2*Math.PI&&car.x>CX-20&&car.x<CX+60&&car.y>CY){acc=0;laps++;last=t;const mine=loadG(kinSel.value);
-  if(!mine||t<mine.time){localStorage.setItem(K+kinSel.value,JSON.stringify({time:t,path:rec}))}
-  if(best===null||t<best)best=t;ghost=loadG(ghostSel.value);rec=[];lapStart=now}}
+ if(!started){if(key.ArrowUp||key.ArrowDown){started=true;lapStart=performance.now()}else return}
+ const now=performance.now(),t=now-lapStart;if(t-lastRec>=33&&rec.length<REC_MAX){rec.push([Math.round(t),Math.round(car.x),Math.round(car.y),+car.a.toFixed(2)]);lastRec=t}
+ const ang=Math.atan2(car.y-CY,car.x-CX);if(onTrack(car.x,car.y))gates.add(Math.floor(((ang+Math.PI)/(2*Math.PI))*GATES)%GATES);if(angPrev!==null){let d=ang-angPrev;if(d>Math.PI)d-=2*Math.PI;if(d<-Math.PI)d+=2*Math.PI;acc+=d}angPrev=ang;
+ if(Math.abs(acc)>=2*Math.PI&&car.x>CX-20&&car.x<CX+60&&car.y>CY){acc=0;const fair=gates.size===GATES;gates=new Set();if(!fair){msg='Lap not counted: pass every lantern gate on the track';msgT=now;rec=[];lastRec=-1e9;lapStart=now;return}
+  laps++;last=t;const mine=loadG(kinSel.value);
+  if(t<=MAX_LAP_MS&&rec.length<REC_MAX&&(!mine||t<mine.time)){localStorage.setItem(K+kinSel.value,JSON.stringify({time:t,path:rec}))}
+  if(best===null||t<best)best=t;ghost=loadG(ghostSel.value);rec=[];lastRec=-1e9;lapStart=now}}
 function kart(px,py,a,col,al){x.save();x.globalAlpha=al;x.translate(px,py);x.rotate(a);x.fillStyle=col;x.fillRect(-12,-7,24,14);x.fillStyle='#222';x.fillRect(-10,-10,6,3);x.fillRect(4,-10,6,3);x.fillRect(-10,7,6,3);x.fillRect(4,7,6,3);x.fillStyle='#ffe9a8';x.fillRect(9,-4,4,8);x.restore()}
 function ghostPos(t){if(!ghost||!ghost.path.length)return null;const p=ghost.path;let i=p.findIndex(q=>q[0]>=t);if(i<0)i=p.length-1;return p[i]}
 function draw(){x.fillStyle='#0b0d22';x.fillRect(0,0,W,H);
@@ -31,10 +36,11 @@ function draw(){x.fillStyle='#0b0d22';x.fillRect(0,0,W,H);
  // lantern darkness with headlight glow + trackside lanterns
  x.save();x.globalCompositeOperation='multiply';const r=x.createRadialGradient(car.x,car.y,20,car.x,car.y,230);r.addColorStop(0,'#fff1c8');r.addColorStop(1,'#6a68a0');x.fillStyle=r;x.fillRect(0,0,W,H);x.restore();
  for(let k=0;k<12;k++){const a=k/12*6.283,lx=CX+Math.cos(a)*(RO[0]+18),ly=CY+Math.sin(a)*(RO[1]+18);const q=x.createRadialGradient(lx,ly,1,lx,ly,28);q.addColorStop(0,'rgba(255,200,100,.6)');q.addColorStop(1,'rgba(255,200,100,0)');x.fillStyle=q;x.fillRect(lx-28,ly-28,56,56)}
- const g=ghostPos(performance.now()-lapStart);if(g)kart(g[1],g[2],g[3],'#9fd8ff',.45);
+ const g=started?ghostPos(performance.now()-lapStart):null;if(g)kart(g[1],g[2],g[3],'#9fd8ff',.45);
+ if(ghostSel.value==='__race'&&started){const tt=performance.now()-lapStart;x.font='11px monospace';x.textAlign='center';for(const hg of houseGhosts){const q=posIn(hg.path,tt);kart(q[1],q[2],q[3],hg.color||'#9fd8ff',.55);x.fillStyle=hg.color||'#9fd8ff';x.fillText(hg.kin,q[1],q[2]-14)}}
  const f=s=>s==null?'--':(s/1000).toFixed(2)+'s';x.fillStyle='#ffd98a';x.font='16px monospace';x.textAlign='left';
- x.fillText(`Lap ${laps+1}  Time ${f(performance.now()-lapStart)}  Last ${f(last)}  Best ${f(best)}  Gear ${gear}${gear==2?' (SHIFT!)':''}`,12,22);
- x.fillText(ghost?`Ghost: ${ghostSel.value} ${f(ghost.time)}`:`No ghost for ${ghostSel.value} yet`,12,44)}
+ x.fillText(`Lap ${laps+1}  Time ${started?f(performance.now()-lapStart):'press ↑ to start'}  Last ${f(last)}  Best ${f(best)}  Gear ${gear}${gear==2?' (SHIFT!)':''}`,12,22);
+ x.fillText(ghostSel.value==='__race'?`Race Night: ${houseGhosts.length?houseGhosts.map(h=>h.kin+' '+f(h.time)).join(', '):'no house ghosts loaded'}`:ghost?`Ghost: ${ghostSel.value} ${f(ghost.time)}`:`No ghost for ${ghostSel.value} yet`,12,44);x.fillText(`Gates ${gates.size}/${GATES}`,12,66);if(performance.now()-msgT<2500){x.fillStyle='#ff9a7a';x.fillText(msg,12,88)}}
 let prev=performance.now();function loop(n){const dt=Math.min(.05,(n-prev)/1000);prev=n;step(dt);draw();requestAnimationFrame(loop)}requestAnimationFrame(loop);
-window.__gk={car,get laps(){return laps},get ghost(){return ghost},get best(){return best}};
+window.__gk={car,get laps(){return laps},get ghost(){return ghost},get best(){return best},get started(){return started},get recLen(){return rec.length},get gates(){return gates.size},get houseGhosts(){return houseGhosts}};
 </script></body></html>

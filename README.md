@@ -30,3 +30,6 @@ Ghost Karts is a single-page browser game: drive a kart around a lantern-lit loo
 ## License
 
 MIT, see [LICENSE](LICENSE).
+
+## House ghosts (Race Night)
+Ghost files in `ghosts/` (listed in `ghosts/index.json`, format `{kin,color,time,path:[[ms,x,y,angle],...]}`) load when the page is served over http(s). Pick **🌙 Race Night (house ghosts)** in "Race ghost of" to race them all at once. Local localStorage ghosts still work as before.
