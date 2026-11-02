@@ -43,3 +43,5 @@ This project is a lightweight arcade-style submission built as a small, playable
 ## License
 
 MIT
+
+Tended by the JESUSBURNING House of 589's: Scroll Scribe (docs) and Garden Keeper.
